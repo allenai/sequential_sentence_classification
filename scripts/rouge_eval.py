@@ -1,20 +1,12 @@
 import os
-import sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir, os.pardir))))
-
 import json
-from tqdm import tqdm
-import numpy as np
 import argparse
+import numpy as np
+from tqdm import tqdm
 
 from allennlp.models.archival import load_archive
-from abstruct.models.abstruct_baseline_model_before_multi_sep import AbstructBaselineModelBeforeMultiSep
-from abstruct.models.abstruct_baseline_model import AbstructBaselineModel
-from abstruct.models.abstruct_predictor import AbstructPredictor
-from abstruct.data.abstruct_dataset_reader import AbstructDatasetReader
-from abstruct.data.abstruct_dataset_reader_before_multi_sep import AbstructDatasetReaderBeforeMultiSep
 from allennlp.service.predictors import Predictor
-from allennlp.common.params import Params
+from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 
 # Rouge computation is taken from https://github.com/EdCo95/scientific-paper-summarisation/blob/master/Evaluation/rouge.py
 # 
@@ -119,7 +111,7 @@ class Rouge():
     def method(self):
         return "Rouge"
 
-def main(model_path: str, test_jsonl_file: str, test_highlights_path: str, model_type: str, reader_type: str):
+def main(model_path: str, test_jsonl_file: str, test_highlights_path: str):
     rouge = Rouge()
     # Load paper highlights
     with open(test_highlights_path) as _highlights_json_file:
@@ -131,48 +123,17 @@ def main(model_path: str, test_jsonl_file: str, test_highlights_path: str, model
     # Load allennlp model
     text_field_embedder = {"token_embedders": {"bert": {"pretrained_model": "/net/nfs.corp/s2-research/scibert/scibert_scivocab_uncased.tar.gz"}}}
     token_indexers = {"bert": {"pretrained_model": "/net/nfs.corp/s2-research/scibert/scivocab_uncased.vocab"}}
-    overrides = {"model": {"type": model_type, "text_field_embedder": text_field_embedder},
-                 "dataset_reader": {"type": reader_type, "token_indexers": token_indexers},}
+    overrides = {"model": {"text_field_embedder": text_field_embedder},
+                 "dataset_reader": {"token_indexers": token_indexers},}
     model_archive = load_archive(model_path, overrides=json.dumps(overrides), cuda_device=0)
-    predictor = Predictor.from_archive(model_archive, 'abstruct-predictor')
+    predictor = Predictor.from_archive(model_archive, 'SeqClassificationPredictor')
+    dataset_reader = Predictor._dataset_reader
 
     # Load papers to predict on
     with open(test_jsonl_file) as _test_jsonl_file:
         test_lines = [json.loads(line) for line in _test_jsonl_file.read().split('\n')[:-1]]
 
     print("{} test lines loaded".format(len(test_lines)))
-
-    num_sentences_limit = 500
-    train_on_highlights = True
-    dataset_reader = AbstructDatasetReader.from_params(Params({
-        "use_lexical_features": False,
-        "use_umls_features": False,
-        "lazy": True,
-        "sent_len_limit": 40,
-        "num_sentences_limit": num_sentences_limit,
-        "umls_features_path": "data/PubMed_20k_formatted/umls_features.json",
-        "word_splitter": "just_spaces",
-        "token_indexers": {
-                            "bert": {
-                                "type": "bert-pretrained",
-                                "pretrained_model": "/net/nfs.corp/s2-research/scibert/scivocab_uncased.vocab",
-                                "do_lowercase": True,
-                                "use_starting_offsets": False
-                            }
-                          },
-        "use_sep": 'no',  # 'all'
-        "sci_sum_context_size": -1,
-        "max_sent_per_example": 25,  # 10
-        "predict": True,
-        "sci_sum": True,
-        "use_abstract_scores": True,  # False
-        "use_sentence_index": True,  # False
-        "train_on_highlights": train_on_highlights,
-    }))
-
-    pos_index = 2
-    neg_index = 1
-    neutral_index = 0
 
     abstract_total_score = 0
     abstract_total_instances = 0
@@ -211,8 +172,8 @@ def main(model_path: str, test_jsonl_file: str, test_highlights_path: str, model
         if not isinstance(instances, list):  # if the datareader returns one instnace, put it in a list
             instances = [instances]
 
-        sentences = json_dict['sentences'][:num_sentences_limit]
-        gold_scores_list = json_dict['highlight_scores'][:num_sentences_limit]
+        sentences = json_dict['sentences']
+        gold_scores_list = json_dict['highlight_scores']
         paper_id = instances[0].fields["abstract_id"].metadata
         highlights = higlights_by_id[paper_id]
 
@@ -220,8 +181,6 @@ def main(model_path: str, test_jsonl_file: str, test_highlights_path: str, model
         for instance in instances:
             prediction = predictor.predict_instance(instance)
             probs = prediction['action_probs']
-            if not train_on_highlights:
-                probs = [p[pos_index] for p in probs]
             scores_list.extend(probs)
 
         assert len(sentences) == len(scores_list)
@@ -246,7 +205,6 @@ def main(model_path: str, test_jsonl_file: str, test_highlights_path: str, model
         total_score += avg_summary_score
         total_instances += 1
 
-    
     print("final score:", total_score / total_instances)
 
 if __name__ == "__main__":
@@ -255,22 +213,10 @@ if __name__ == "__main__":
         "--path_to_model",
         help="Path to the model to evaluate"
     )
-    parser.add_argument(
-        "--model_type",
-        help="The AllenNLP registered model type",
-        default="AbstructBaselineModel"
-    )
-    parser.add_argument(
-        "--reader_type",
-        help="The AllenNLP registered dataset reader type",
-        default="AbstructDatasetReader"
-    )
-
     args = parser.parse_args()
 
-    abstruct_root_dir = os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir, os.pardir)))
-    test_jsonl_file = os.path.join(abstruct_root_dir, "data", "sci_sum", "abstruct_regen_data_test.jsonl")
-    test_highlights_path = os.path.join(abstruct_root_dir, "data", "sci_sum", "test_highlights.json")
-    test_abstracts_path = os.path.join(abstruct_root_dir, "data", "sci_sum", "test_abstracts.json")
+    test_jsonl_file = os.path.join("data", "sci_sum", "rouge_test.jsonl")
+    test_highlights_path = os.path.join("data", "sci_sum", "test_highlights.json")
+    test_abstracts_path = os.path.join("data", "sci_sum", "test_abstracts.json")
     
-    main(args.path_to_model, test_jsonl_file, test_highlights_path, args.model_type, args.reader_type)
+    main(args.path_to_model, test_jsonl_file, test_highlights_path)
