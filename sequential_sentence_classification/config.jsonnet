@@ -29,6 +29,7 @@ local boolToInt(s) =
     "use_sep": std.extVar("USE_SEP"),
     "sci_sum": stringToBool(std.extVar("SCI_SUM")),
     "use_abstract_scores": stringToBool(std.extVar("USE_ABSTRACT_SCORES")),
+    "sci_sum_fake_scores": stringToBool(std.extVar("SCI_SUM_FAKE_SCORES")),
   },
 
   "train_data_path": std.extVar("TRAIN_PATH"),
@@ -80,7 +81,8 @@ local boolToInt(s) =
     "grad_clipping": 1.0,
     "patience": 5,
     "model_save_interval": 3600,
-    "validation_metric": "+avgF",
+    "validation_metric": if stringToBool(std.extVar("SCI_SUM")) then "-loss" else '+acc',
+
     "cuda_device": std.parseInt(std.extVar("cuda_device")),
     "gradient_accumulation_batch_size": 32,
     "optimizer": {

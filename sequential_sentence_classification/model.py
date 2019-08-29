@@ -39,30 +39,30 @@ class SeqClassificationModel(Model):
 
         self.dropout = torch.nn.Dropout(p=bert_dropout)
 
-        self.num_labels = self.vocab.get_vocab_size(namespace='labels')
-        encoded_senetence_dim = text_field_embedder._token_embedders['bert'].output_dim
-
-        ff_dim = encoded_senetence_dim if self.use_sep else self_attn.get_output_dim()
-        ff_dim += self.additional_feature_size
-
-        self.time_distributed_aggregate_feedforward = TimeDistributed(Linear(ff_dim, self.num_labels))
-
-        # define accuracy metrics
-        self.label_accuracy = CategoricalAccuracy()
-        self.label_f1_metrics = {}
-
-        # define F1 metrics per label
-        for label_index in range(self.num_labels):
-            label_name = self.vocab.get_token_from_index(namespace='labels', index=label_index)
-            self.label_f1_metrics[label_name] = F1Measure(label_index)
-
        # define loss
         if self.sci_sum:
             self.loss = torch.nn.MSELoss(reduction='none')  # labels are rouge scores
             self.labels_are_scores = True
+            self.num_labels = 1
         else:
             self.loss = torch.nn.CrossEntropyLoss(ignore_index=-1, reduction='none')
             self.labels_are_scores = False
+            self.num_labels = self.vocab.get_vocab_size(namespace='labels')
+            # define accuracy metrics
+            self.label_accuracy = CategoricalAccuracy()
+            self.label_f1_metrics = {}
+
+            # define F1 metrics per label
+            for label_index in range(self.num_labels):
+                label_name = self.vocab.get_token_from_index(namespace='labels', index=label_index)
+                self.label_f1_metrics[label_name] = F1Measure(label_index)
+
+        encoded_senetence_dim = text_field_embedder._token_embedders['bert'].output_dim
+
+        ff_in_dim = encoded_senetence_dim if self.use_sep else self_attn.get_output_dim()
+        ff_in_dim += self.additional_feature_size
+
+        self.time_distributed_aggregate_feedforward = TimeDistributed(Linear(ff_in_dim, self.num_labels))
 
         if self.with_crf:
             self.crf = ConditionalRandomField(
@@ -100,6 +100,7 @@ class SeqClassificationModel(Model):
         if self.use_sep:
             # The following code collects vectors of the SEP tokens from all the examples in the batch,
             # and arrange them in one list. It does the same for the labels and confidences.
+            # TODO: replace 103 with '[SEP]'
             sentences_mask = sentences['bert'] == 103  # mask for all the SEP tokens in the batch
             embedded_sentences = embedded_sentences[sentences_mask]  # given batch_size x num_sentences_per_example x sent_len x vector_len
                                                                         # returns num_sentences_per_batch x vector_len

@@ -31,6 +31,7 @@ export SENT_MAX_LEN=40
 # this is for the evaluation of the summarization dataset
 export SCI_SUM=false
 export USE_ABSTRACT_SCORES=false
+export SCI_SUM_FAKE_SCORES=false  # use fake scores for testing
 
 CONFIG_FILE=sequential_sentence_classification/config.jsonnet
 

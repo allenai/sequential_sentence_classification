@@ -40,6 +40,7 @@ class SeqClassificationReader(DatasetReader):
                  use_sep: bool = True,
                  sci_sum: bool = False,
                  use_abstract_scores: bool = True,
+                 sci_sum_fake_scores: bool = True,
                  predict: bool = False,
                  ) -> None:
         super().__init__(lazy)
@@ -52,6 +53,7 @@ class SeqClassificationReader(DatasetReader):
         self.sci_sum = sci_sum
         self.max_sent_per_example = max_sent_per_example
         self.use_abstract_scores = use_abstract_scores
+        self.sci_sum_fake_scores = sci_sum_fake_scores
 
     @overrides
     def _read(self, file_path: str):
@@ -75,12 +77,20 @@ class SeqClassificationReader(DatasetReader):
 
         additional_features = None
         if self.sci_sum:
-            labels = [s if s > 0 else 0.000001 for s in json_dict["highlight_scores"]]
+            if self.sci_sum_fake_scores:
+                labels = [np.random.rand() for _ in sentences]
+            else: 
+                labels = [s if s > 0 else 0.000001 for s in json_dict["highlight_scores"]]
 
             if self.use_abstract_scores:
                 features = []
                 if self.use_abstract_scores:
-                    features.append(json_dict["abstract_scores"])
+                    if self.sci_sum_fake_scores:
+                        abstract_scores = [np.random.rand() for _ in sentences]
+                    else:
+                        abstract_scores = json_dict["abstract_scores"]
+                    features.append(abstract_scores)
+                    
                 additional_features = list(map(list, zip(*features)))  # some magic transpose function
 
             sentences, labels = self.filter_bad_sci_sum_sentences(sentences, labels)
