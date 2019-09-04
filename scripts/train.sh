@@ -5,8 +5,8 @@ export PYTORCH_SEED=`expr $SEED / 10`
 export NUMPY_SEED=`expr $PYTORCH_SEED / 10`
 
 # path to bert vocab and weights
-export BERT_VOCAB=/net/nfs.corp/s2-research/scibert/scivocab_uncased.vocab
-export BERT_WEIGHTS=/net/nfs.corp/s2-research/scibert/scibert_scivocab_uncased.tar.gz
+export BERT_VOCAB=https://ai2-s2-research.s3-us-west-2.amazonaws.com/scibert/tensorflow_models/scivocab_uncased.vocab
+export BERT_WEIGHTS=https://ai2-s2-research.s3-us-west-2.amazonaws.com/scibert/tensorflow_models/scibert_scivocab_uncased.tar.gz
 
 # path to dataset files
 export TRAIN_PATH=data/CSAbstruct/train.jsonl
