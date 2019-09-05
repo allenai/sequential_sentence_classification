@@ -14,7 +14,7 @@ from allennlp.data.fields import TextField, LabelField, ListField, ArrayField, M
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 from allennlp.data.tokenizers import WordTokenizer
 from allennlp.data.tokenizers.token import Token
-from allennlp.data.tokenizers.word_splitter import SimpleWordSplitter, WordSplitter
+from allennlp.data.tokenizers.word_splitter import SimpleWordSplitter, WordSplitter, SpacyWordSplitter
 
 
 @DatasetReader.register("SeqClassificationReader")
@@ -44,8 +44,8 @@ class SeqClassificationReader(DatasetReader):
                  predict: bool = False,
                  ) -> None:
         super().__init__(lazy)
-        self._word_splitter = word_splitter or SimpleWordSplitter()
-        self._tokenizer = tokenizer or WordTokenizer(self._word_splitter)
+        # self._word_splitter = word_splitter or SimpleWordSplitter()
+        # self._tokenizer = tokenizer or WordTokenizer(self._word_splitter)
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
         self.sent_max_len = sent_max_len
         self.use_sep = use_sep
@@ -173,18 +173,43 @@ class SeqClassificationReader(DatasetReader):
                          labels: List[str] = None,
                          additional_features: List[float] = None,
                          ) -> Instance:
+        tokenizer = WordTokenizer(word_splitter=SpacyWordSplitter(pos_tags=False))
+
+        filtered_sentences = []
+        filtered_labels = []
+        if not self.predict:
+            for sentence, label in zip(sentences, labels):
+                # most sentences outside of this range are bad sentences
+                if not self.is_bad_sentence(sentence):
+                    filtered_sentences.append(sentence)
+                    filtered_labels.append(label)
+                else:
+                    filtered_sentences.append("BADSENTENCE")
+                    filtered_labels.append("other")
+            sentences = filtered_sentences
+            labels = filtered_labels
+        else:
+            for sentence in sentences:
+                # most sentences outside of this range are bad sentences
+                if not self.is_bad_sentence(sentence):
+                    filtered_sentences.append(sentence)
+                else:
+                    filtered_sentences.append("BADSENTENCE")
+        
+            sentences = filtered_sentences
+
         if not self.predict:
             assert len(sentences) == len(labels)
         if additional_features is not None:
             assert len(sentences) == len(additional_features)
 
         if self.use_sep:
-            tokenized_sentences = [self._tokenizer.tokenize(s)[:self.sent_max_len] + [Token("[SEP]")] for s in sentences]
+            tokenized_sentences = [tokenizer.tokenize(s)[:self.sent_max_len] + [Token("[SEP]")] for s in sentences]
             sentences = [list(itertools.chain.from_iterable(tokenized_sentences))[:-1]]
         else:
             # Tokenize the sentences
             sentences = [
-                self._tokenizer.tokenize(sentence_text)[:self.sent_max_len]
+                tokenizer.tokenize(sentence_text)[:self.sent_max_len]
                 for sentence_text in sentences
             ]
 

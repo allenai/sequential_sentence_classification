@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export SEED=13270
+export SEED=15270
 export PYTORCH_SEED=`expr $SEED / 10`
 export NUMPY_SEED=`expr $PYTORCH_SEED / 10`
 
@@ -20,13 +20,13 @@ export WITH_CRF=false  # CRF only works for the baseline
 # training params
 export cuda_device=0
 export BATCH_SIZE=4
-export LR=2e-5
-export TRAINING_DATA_INSTANCES=2000
-export NUM_EPOCHS=4
+export LR=5e-5
+export TRAINING_DATA_INSTANCES=1668
+export NUM_EPOCHS=2
 
 # limit number of sentneces per examples, and number of words per sentence. This is dataset dependant
-export MAX_SENT_PER_EXAMPLE=10
-export SENT_MAX_LEN=40
+export MAX_SENT_PER_EXAMPLE=20
+export SENT_MAX_LEN=80
 
 # this is for the evaluation of the summarization dataset
 export SCI_SUM=false

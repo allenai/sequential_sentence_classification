@@ -31,7 +31,6 @@ local boolToInt(s) =
     "use_abstract_scores": stringToBool(std.extVar("USE_ABSTRACT_SCORES")),
     "sci_sum_fake_scores": stringToBool(std.extVar("SCI_SUM_FAKE_SCORES")),
   },
-
   "train_data_path": std.extVar("TRAIN_PATH"),
   "validation_data_path": std.extVar("DEV_PATH"),
   "test_data_path": std.extVar("TEST_PATH"),
@@ -49,7 +48,7 @@ local boolToInt(s) =
                 "type": "bert-pretrained",
                 "pretrained_model": std.extVar("BERT_WEIGHTS"),
                 "requires_grad": 'all',
-                "top_layer_only": false,
+                "top_layer_only": true,
             }
         }
     },
@@ -82,7 +81,7 @@ local boolToInt(s) =
     "patience": 5,
     "model_save_interval": 3600,
     "validation_metric": if stringToBool(std.extVar("SCI_SUM")) then "-loss" else '+acc',
-
+    "min_delta": 0.001,
     "cuda_device": std.parseInt(std.extVar("cuda_device")),
     "gradient_accumulation_batch_size": 32,
     "optimizer": {
