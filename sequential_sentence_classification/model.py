@@ -73,6 +73,7 @@ class SeqClassificationModel(Model):
     def forward(self,  # type: ignore
                 sentences: torch.LongTensor,
                 labels: torch.IntTensor = None,
+                confidences: torch.Tensor = None,
                 additional_features: torch.Tensor = None,
                 ) -> Dict[str, torch.Tensor]:
         # pylint: disable=arguments-differ
@@ -120,6 +121,9 @@ class SeqClassificationModel(Model):
 
                 labels = labels[labels_mask]  # given batch_size x num_sentences_per_example return num_sentences_per_batch
                 assert labels.dim() == 1
+                if confidences is not None:
+                    confidences = confidences[labels_mask]
+                    assert confidences.dim() == 1
                 if additional_features is not None:
                     additional_features = additional_features[labels_mask]
                     assert additional_features.dim() == 2
@@ -132,6 +136,13 @@ class SeqClassificationModel(Model):
                                                         # We are ignoring this problem for now.
                                                         # TODO: fix, at least for testing
 
+                # do the same for `confidences`
+                if confidences is not None:
+                    num_confidences = confidences.shape[0]
+                    if num_confidences != num_sentences:
+                        assert num_confidences > num_sentences
+                        confidences = confidences[:num_sentences]
+
                 # and for `additional_features`
                 if additional_features is not None:
                     num_additional_features = additional_features.shape[0]
@@ -141,6 +152,8 @@ class SeqClassificationModel(Model):
 
                 # similar to `embedded_sentences`, add an additional dimension that corresponds to batch_size=1
                 labels = labels.unsqueeze(dim=0)
+                if confidences is not None:
+                    confidences = confidences.unsqueeze(dim=0)
                 if additional_features is not None:
                     additional_features = additional_features.unsqueeze(dim=0)
         else:
@@ -185,6 +198,8 @@ class SeqClassificationModel(Model):
 
             if not self.with_crf:
                 label_loss = self.loss(flattened_logits.squeeze(), flattened_gold)
+                if confidences is not None:
+                    label_loss = label_loss * confidences.type_as(label_loss).view(-1)
                 label_loss = label_loss.mean()
                 flattened_probs = torch.softmax(flattened_logits, dim=-1)
             else:
