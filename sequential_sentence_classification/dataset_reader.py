@@ -14,7 +14,7 @@ from allennlp.data.fields import TextField, LabelField, ListField, ArrayField, M
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 from allennlp.data.tokenizers import WordTokenizer
 from allennlp.data.tokenizers.token import Token
-from allennlp.data.tokenizers.word_splitter import SimpleWordSplitter, WordSplitter
+from allennlp.data.tokenizers.word_splitter import SimpleWordSplitter, WordSplitter, SpacyWordSplitter
 
 
 @DatasetReader.register("SeqClassificationReader")
@@ -44,8 +44,9 @@ class SeqClassificationReader(DatasetReader):
                  predict: bool = False,
                  ) -> None:
         super().__init__(lazy)
-        self._word_splitter = word_splitter or SimpleWordSplitter()
-        self._tokenizer = tokenizer or WordTokenizer(self._word_splitter)
+        # self._word_splitter = word_splitter or SimpleWordSplitter()
+        # self._tokenizer = tokenizer or WordTokenizer(self._word_splitter)
+        self._tokenizer = WordTokenizer(word_splitter=SpacyWordSplitter(pos_tags=False))
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
         self.sent_max_len = sent_max_len
         self.use_sep = use_sep
