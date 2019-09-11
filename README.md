@@ -1,5 +1,5 @@
 # <p align=center>Sequential Sentence Classification</p>
-This repo has code and data for our paper "Pretrained Language Models for Sequential Sentence Classification"
+This repo has code and data for our paper ["Pretrained Language Models for Sequential Sentence Classification"](https://arxiv.org/pdf/1909.04054.pdf).
 
 ### How to run
 
