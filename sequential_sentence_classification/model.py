@@ -57,7 +57,7 @@ class SeqClassificationModel(Model):
                 label_name = self.vocab.get_token_from_index(namespace='labels', index=label_index)
                 self.label_f1_metrics[label_name] = F1Measure(label_index)
 
-        encoded_senetence_dim = text_field_embedder._token_embedders['bert'].output_dim
+        encoded_senetence_dim = text_field_embedder._token_embedders['bert'].get_output_dim()
 
         ff_in_dim = encoded_senetence_dim if self.use_sep else self_attn.get_output_dim()
         ff_in_dim += self.additional_feature_size
@@ -94,7 +94,7 @@ class SeqClassificationModel(Model):
         # Output: embedded_sentences
 
         # embedded_sentences: batch_size, num_sentences, sentence_length, embedding_size
-        embedded_sentences = self.text_field_embedder(sentences)
+        embedded_sentences = self.text_field_embedder(sentences, num_wrapping_dims= 1)
         mask = get_text_field_mask(sentences, num_wrapping_dims=1).float()
         batch_size, num_sentences, _, _ = embedded_sentences.size()
 
@@ -102,7 +102,7 @@ class SeqClassificationModel(Model):
             # The following code collects vectors of the SEP tokens from all the examples in the batch,
             # and arrange them in one list. It does the same for the labels and confidences.
             # TODO: replace 103 with '[SEP]'
-            sentences_mask = sentences['bert'] == 103  # mask for all the SEP tokens in the batch
+            sentences_mask = sentences['bert']["token_ids"] == 103  # mask for all the SEP tokens in the batch
             embedded_sentences = embedded_sentences[sentences_mask]  # given batch_size x num_sentences_per_example x sent_len x vector_len
                                                                         # returns num_sentences_per_batch x vector_len
             assert embedded_sentences.dim() == 2
@@ -238,8 +238,8 @@ class SeqClassificationModel(Model):
             average_F1 = 0.0
             for name, metric in self.label_f1_metrics.items():
                 metric_val = metric.get_metric(reset)
-                metric_dict[name + 'F'] = metric_val[2]
-                average_F1 += metric_val[2]
+                metric_dict[name + 'F'] = metric_val["f1"]
+                average_F1 += metric_val["f1"]
 
             average_F1 /= len(self.label_f1_metrics.items())
             metric_dict['avgF'] = average_F1

@@ -7,14 +7,13 @@ import numpy as np
 
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.common.file_utils import cached_path
-from allennlp.data import Tokenizer
+from allennlp.data import TokenIndexer, Tokenizer
 from allennlp.data.instance import Instance
 from allennlp.data.fields.field import Field
 from allennlp.data.fields import TextField, LabelField, ListField, ArrayField, MultiLabelField
-from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
-from allennlp.data.tokenizers import WordTokenizer
+from allennlp.data.token_indexers import SingleIdTokenIndexer
+from allennlp.data.tokenizers import WhitespaceTokenizer
 from allennlp.data.tokenizers.token import Token
-from allennlp.data.tokenizers.word_splitter import SimpleWordSplitter, WordSplitter, SpacyWordSplitter
 
 
 @DatasetReader.register("SeqClassificationReader")
@@ -31,9 +30,7 @@ class SeqClassificationReader(DatasetReader):
     """
 
     def __init__(self,
-                 lazy: bool = False,
                  token_indexers: Dict[str, TokenIndexer] = None,
-                 word_splitter: WordSplitter = None,
                  tokenizer: Tokenizer = None,
                  sent_max_len: int = 100,
                  max_sent_per_example: int = 20,
@@ -43,8 +40,9 @@ class SeqClassificationReader(DatasetReader):
                  sci_sum_fake_scores: bool = True,
                  predict: bool = False,
                  ) -> None:
-        super().__init__(lazy)
-        self._tokenizer = WordTokenizer(word_splitter=SpacyWordSplitter(pos_tags=False))
+        super().__init__(manual_distributed_sharding=True,
+            manual_multiprocess_sharding=True, **kwargs)
+        self._tokenizer = tokenizer or WhitespaceTokenizer()
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
         self.sent_max_len = sent_max_len
         self.use_sep = use_sep
@@ -54,12 +52,12 @@ class SeqClassificationReader(DatasetReader):
         self.use_abstract_scores = use_abstract_scores
         self.sci_sum_fake_scores = sci_sum_fake_scores
 
-    @overrides
+
     def _read(self, file_path: str):
         file_path = cached_path(file_path)
 
         with open(file_path) as f:
-            for line in f:
+            for line in self.shard_iterable(f):
                 json_dict = json.loads(line)
                 instances = self.read_one_example(json_dict)
                 for instance in instances:
@@ -173,7 +171,6 @@ class SeqClassificationReader(DatasetReader):
 
         return sentences, labels
 
-    @overrides
     def text_to_instance(self,
                          sentences: List[str],
                          labels: List[str] = None,
@@ -199,7 +196,7 @@ class SeqClassificationReader(DatasetReader):
 
         fields: Dict[str, Field] = {}
         fields["sentences"] = ListField([
-                TextField(sentence, self._token_indexers)
+                TextField(sentence)
                 for sentence in sentences
         ])
 
@@ -224,3 +221,7 @@ class SeqClassificationReader(DatasetReader):
             fields["additional_features"] = ArrayField(np.array(additional_features))
 
         return Instance(fields)
+
+    def apply_token_indexers(self, instance: Instance) -> None:
+        for text_field in instance["sentences"].field_list:
+            text_field.token_indexers = self._token_indexers
