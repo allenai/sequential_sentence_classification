@@ -191,13 +191,17 @@ class SeqClassificationReader(DatasetReader):
             assert len(sentences) == len(additional_features)
 
         if self.use_sep:
-            # Tokenize the sentences
-            tokenized_sentences =[]
-            if len(self._tokenizer.tokenize(s)) > self.sent_max_len:
-                    tokenized_sentences.append(self._tokenizer.tokenize(s)[:self.sent_max_len]+self._tokenizer.sequence_pair_mid_tokens)
-                else:
-                    tokenized_sentences.append(self._tokenizer.tokenize(s))
-            sentences = [list(itertools.chain.from_iterable(tokenized_sentences))]
+            origin_sent = copy.deepcopy(sentences)
+            sentences = self.shorten_sentences(sentences, self.sent_max_len)
+    
+            max_len=self.sent_max_len
+            while len(sentences[0]) > 512:
+                n = int((len(sentences[0])-512)/ len(origin_sent))+1
+                
+                max_len -= n
+                sentences = self.shorten_sentences(origin_sent, max_len )
+              
+            assert len(sentences[0]) <= 512
     
         else:
             tok_sentences = []
@@ -240,3 +244,14 @@ class SeqClassificationReader(DatasetReader):
     def apply_token_indexers(self, instance: Instance) -> None:
         for text_field in instance["sentences"].field_list:
             text_field.token_indexers = self._token_indexers
+
+     def shorten_sentences(self, origin_sent, max_len):
+        
+        tokenized_sentences = [self._tokenizer.sequence_pair_start_tokens]
+        for s in origin_sent:
+            if len(self._tokenizer.tokenize(s)) > (max_len):
+                tokenized_sentences.append(self._tokenizer.tokenize(s)[1:(max_len)]+self._tokenizer.sequence_pair_mid_tokens)
+            else:
+                tokenized_sentences.append(self._tokenizer.tokenize(s)[1:-1]+self._tokenizer.sequence_pair_mid_tokens)
+        mid_tok_len = len(self._tokenizer.sequence_pair_mid_tokens)
+        return [list(itertools.chain.from_iterable(tokenized_sentences))[:-mid_tok_len]+self._tokenizer.sequence_pair_end_tokens]
