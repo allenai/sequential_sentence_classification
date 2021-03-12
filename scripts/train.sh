@@ -14,6 +14,7 @@ export TEST_PATH=data/CSAbstruct/test.jsonl
 
 # model
 export USE_SEP=true  # true for our model. false for baseline
+export TOKEN=[SEP]
 export WITH_CRF=false  # CRF only works for the baseline
 
 # training params

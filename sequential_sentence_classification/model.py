@@ -25,6 +25,7 @@ class SeqClassificationModel(Model):
                  self_attn: Seq2SeqEncoder = None,
                  bert_dropout: float = 0.1,
                  sci_sum: bool = False,
+                 intersentence_token: str = "[SEP]",
                  additional_feature_size: int = 0,
                  ) -> None:
         super(SeqClassificationModel, self).__init__(vocab)
@@ -36,7 +37,7 @@ class SeqClassificationModel(Model):
         self.sci_sum = sci_sum
         self.self_attn = self_attn
         self.additional_feature_size = additional_feature_size
-
+        self.token = intersentence_token
         self.dropout = torch.nn.Dropout(p=bert_dropout)
 
        # define loss
@@ -62,7 +63,7 @@ class SeqClassificationModel(Model):
         ff_in_dim = encoded_senetence_dim if self.use_sep else self_attn.get_output_dim()
         ff_in_dim += self.additional_feature_size
 
-        self.time_distributed_aggregate_feedforward = TimeDistributed(Linear(ff_in_dim, self.num_labels))
+        self.time_distributed_aggregate_feedforward = Linear(ff_in_dim, self.num_labels)
 
         if self.with_crf:
             self.crf = ConditionalRandomField(
@@ -82,14 +83,8 @@ class SeqClassificationModel(Model):
         ----------
         TODO: add description
 
-        Returns
-        -------
-        An output dictionary consisting of:
-        loss : torch.FloatTensor, optional
-            A scalar loss to be optimised.
         """
         # ===========================================================================================================
-        # Layer 1: For each sentence, participant pair: create a Glove embedding for each token
         # Input: sentences
         # Output: embedded_sentences
 
@@ -102,7 +97,8 @@ class SeqClassificationModel(Model):
             # The following code collects vectors of the SEP tokens from all the examples in the batch,
             # and arrange them in one list. It does the same for the labels and confidences.
             # TODO: replace 103 with '[SEP]'
-            sentences_mask = sentences['bert']["token_ids"] == 103  # mask for all the SEP tokens in the batch
+            index_sep = int(self.vocab.get_token_index(token=self.token, namespace = "tags"))
+            sentences_mask = sentences['bert']["token_ids"] == index_sep # mask for all the SEP tokens in the batch
             embedded_sentences = embedded_sentences[sentences_mask]  # given batch_size x num_sentences_per_example x sent_len x vector_len
                                                                         # returns num_sentences_per_batch x vector_len
             assert embedded_sentences.dim() == 2

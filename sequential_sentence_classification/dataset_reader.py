@@ -51,6 +51,12 @@ class SeqClassificationReader(DatasetReader):
         self.max_sent_per_example = max_sent_per_example
         self.use_abstract_scores = use_abstract_scores
         self.sci_sum_fake_scores = sci_sum_fake_scores
+        print("*********************************")
+        print("start token : ", self._tokenizer.sequence_pair_start_tokens)
+        print("middle token : ", self._tokenizer.sequence_pair_mid_tokens)
+        print("end token : ", self._tokenizer.sequence_pair_end_tokens)
+        print("*********************************")
+
 
 
     def _read(self, file_path: str):
@@ -185,15 +191,24 @@ class SeqClassificationReader(DatasetReader):
             assert len(sentences) == len(additional_features)
 
         if self.use_sep:
-            tokenized_sentences = [self._tokenizer.tokenize(s)[:self.sent_max_len] + [Token("[SEP]")] for s in sentences]
-            sentences = [list(itertools.chain.from_iterable(tokenized_sentences))[:-1]]
-        else:
             # Tokenize the sentences
-            sentences = [
-                self._tokenizer.tokenize(sentence_text)[:self.sent_max_len]
-                for sentence_text in sentences
-            ]
-
+            tokenized_sentences =[]
+            if len(self._tokenizer.tokenize(s)) > self.sent_max_len:
+                    tokenized_sentences.append(self._tokenizer.tokenize(s)[:self.sent_max_len]+self._tokenizer.sequence_pair_mid_tokens)
+                else:
+                    tokenized_sentences.append(self._tokenizer.tokenize(s))
+            sentences = [list(itertools.chain.from_iterable(tokenized_sentences))]
+    
+        else:
+            tok_sentences = []
+            for sentence_text in sentences:
+                if len(self._tokenizer.tokenize(sentence_text)) > self.sent_max_len:
+                    tok_sentences.append(self._tokenizer.tokenize(sentence_text)[:self.sent_max_len]+self._tokenizer.sequence_pair_end_tokens)
+                else:
+                    tok_sentences.append(self._tokenizer.tokenize(sentence_text))
+            
+            sentences = tok_sentences
+           
         fields: Dict[str, Field] = {}
         fields["sentences"] = ListField([
                 TextField(sentence)

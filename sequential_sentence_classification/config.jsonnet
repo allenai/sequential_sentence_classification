@@ -29,6 +29,7 @@ local boolToInt(s) =
         "sent_max_len": std.parseInt(std.extVar("SENT_MAX_LEN")),
         "max_sent_per_example": 10,
         "use_sep": stringToBool(std.extVar("USE_SEP")),
+        "intersentence_token":std.extVar("TOKEN"),
         "sci_sum": stringToBool(std.extVar("SCI_SUM")),
         "use_abstract_scores": stringToBool(std.extVar("USE_ABSTRACT_SCORES")),
         "sci_sum_fake_scores": stringToBool(std.extVar("SCI_SUM_FAKE_SCORES")),
