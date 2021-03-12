@@ -193,7 +193,10 @@ class SeqClassificationModel(Model):
             flattened_gold = labels.contiguous().view(-1)
 
             if not self.with_crf:
-                label_loss = self.loss(flattened_logits.squeeze(), flattened_gold)
+                if flattened_logits.shape[0] == 1:
+                    label_loss = self.loss(flattened_logits, flattened_gold)
+                else:
+                    label_loss = self.loss(flattened_logits.squeeze(), flattened_gold)
                 if confidences is not None:
                     label_loss = label_loss * confidences.type_as(label_loss).view(-1)
                 label_loss = label_loss.mean()
@@ -211,7 +214,10 @@ class SeqClassificationModel(Model):
 
             if not self.labels_are_scores:
                 evaluation_mask = (flattened_gold != -1)
-                self.label_accuracy(flattened_probs.float().contiguous(), flattened_gold.squeeze(-1), mask=evaluation_mask)
+                if flattened_probs.shape[0] == 1:
+                    self.label_accuracy(flattened_probs.float().contiguous(), flattened_gold, mask=evaluation_mask)
+                else:
+                    self.label_accuracy(flattened_probs.float().contiguous(), flattened_gold.squeeze(-1), mask=evaluation_mask)
 
                 # compute F1 per label
                 for label_index in range(self.num_labels):
