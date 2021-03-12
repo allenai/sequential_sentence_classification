@@ -26,6 +26,7 @@ class SeqClassificationModel(Model):
                  bert_dropout: float = 0.1,
                  sci_sum: bool = False,
                  intersentence_token: str = "[SEP]",
+                 model_type: str = "bert",
                  additional_feature_size: int = 0,
                  ) -> None:
         super(SeqClassificationModel, self).__init__(vocab)
@@ -101,6 +102,14 @@ class SeqClassificationModel(Model):
             sentences_mask = sentences['bert']["token_ids"] == index_sep # mask for all the SEP tokens in the batch
             embedded_sentences = embedded_sentences[sentences_mask]  # given batch_size x num_sentences_per_example x sent_len x vector_len
                                                                         # returns num_sentences_per_batch x vector_len
+            ## roberta only WORKS ONLY IF BATCH SIZE == 1
+            if self.model_type == "roberta" :            
+                assert batch_size == 1, "set batch size to 1 for RoBERTa"                                               
+                indx = np.arange(embedded_sentences.shape[0])
+                device = "cuda" 
+                sel_idx = torch.from_numpy(indx[indx%2==0]).to(device)# select only scond intersentence marker
+                embedded_sentences = torch.index_select(embedded_sentences, 0, sel_idx)
+            
             assert embedded_sentences.dim() == 2
             num_sentences = embedded_sentences.shape[0]
             # for the rest of the code in this model to work, think of the data we have as one example

@@ -4,8 +4,15 @@ export SEED=15270
 export PYTORCH_SEED=`expr $SEED / 10`
 export NUMPY_SEED=`expr $PYTORCH_SEED / 10`
 
-# path to bert vocab and weights
-export BERT_MODEL=allenai/scibert_scivocab_uncased
+# path to bert type and path
+# export BERT_MODEL=allenai/scibert_scivocab_uncased
+# export TOKEN= [SEP]
+# export MODEL_TYPE=bert
+
+export BERT_MODEL=roberta-base
+export TOKEN=</s>
+export MODEL_TYPE=roberta
+
 
 # path to dataset files
 export TRAIN_PATH=data/CSAbstruct/train.jsonl
@@ -14,12 +21,11 @@ export TEST_PATH=data/CSAbstruct/test.jsonl
 
 # model
 export USE_SEP=true  # true for our model. false for baseline
-export TOKEN=[SEP]
 export WITH_CRF=false  # CRF only works for the baseline
 
 # training params
 export cuda_device=0
-export BATCH_SIZE=4
+export BATCH_SIZE=1 # set one for roberta
 export LR=5e-5
 export TRAINING_DATA_INSTANCES=1668
 export NUM_EPOCHS=2

@@ -30,6 +30,7 @@ local boolToInt(s) =
         "max_sent_per_example": 10,
         "use_sep": stringToBool(std.extVar("USE_SEP")),
         "intersentence_token":std.extVar("TOKEN"),
+        "model_type":std.extVar("MODEL_TYPE"),
         "sci_sum": stringToBool(std.extVar("SCI_SUM")),
         "use_abstract_scores": stringToBool(std.extVar("USE_ABSTRACT_SCORES")),
         "sci_sum_fake_scores": stringToBool(std.extVar("SCI_SUM_FAKE_SCORES")),
