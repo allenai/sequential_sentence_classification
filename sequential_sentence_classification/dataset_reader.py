@@ -4,6 +4,7 @@ from typing import Dict, List
 from overrides import overrides
 
 import numpy as np
+import copy
 
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.common.file_utils import cached_path
@@ -13,7 +14,7 @@ from allennlp.data.fields.field import Field
 from allennlp.data.fields import TextField, LabelField, ListField, ArrayField, MultiLabelField
 from allennlp.data.token_indexers import SingleIdTokenIndexer
 from allennlp.data.tokenizers import WhitespaceTokenizer
-from allennlp.data.tokenizers.token import Token
+from allennlp.data.tokenizers.token_class import Token
 
 
 @DatasetReader.register("SeqClassificationReader")
@@ -41,7 +42,7 @@ class SeqClassificationReader(DatasetReader):
                  predict: bool = False,
                  ) -> None:
         super().__init__(manual_distributed_sharding=True,
-            manual_multiprocess_sharding=True, **kwargs)
+            manual_multiprocess_sharding=True)
         self._tokenizer = tokenizer or WhitespaceTokenizer()
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
         self.sent_max_len = sent_max_len
@@ -245,8 +246,7 @@ class SeqClassificationReader(DatasetReader):
         for text_field in instance["sentences"].field_list:
             text_field.token_indexers = self._token_indexers
 
-     def shorten_sentences(self, origin_sent, max_len):
-        
+    def shorten_sentences(self, origin_sent, max_len):
         tokenized_sentences = [self._tokenizer.sequence_pair_start_tokens]
         for s in origin_sent:
             if len(self._tokenizer.tokenize(s)) > (max_len):

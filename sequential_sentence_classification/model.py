@@ -1,6 +1,7 @@
 import logging
 from typing import Dict
 
+import numpy as np
 import torch
 from torch.nn import Linear
 from allennlp.data import Vocabulary
@@ -39,6 +40,7 @@ class SeqClassificationModel(Model):
         self.self_attn = self_attn
         self.additional_feature_size = additional_feature_size
         self.token = intersentence_token
+        self.model_type = model_type
         self.dropout = torch.nn.Dropout(p=bert_dropout)
 
        # define loss

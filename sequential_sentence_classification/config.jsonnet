@@ -29,8 +29,6 @@ local boolToInt(s) =
         "sent_max_len": std.parseInt(std.extVar("SENT_MAX_LEN")),
         "max_sent_per_example": 10,
         "use_sep": stringToBool(std.extVar("USE_SEP")),
-        "intersentence_token":std.extVar("TOKEN"),
-        "model_type":std.extVar("MODEL_TYPE"),
         "sci_sum": stringToBool(std.extVar("SCI_SUM")),
         "use_abstract_scores": stringToBool(std.extVar("USE_ABSTRACT_SCORES")),
         "sci_sum_fake_scores": stringToBool(std.extVar("SCI_SUM_FAKE_SCORES")),
@@ -52,8 +50,10 @@ local boolToInt(s) =
         }
         }
     },
-    "use_sep": std.extVar("USE_SEP"),
-    "with_crf": std.extVar("WITH_CRF"),
+    "use_sep": stringToBool(std.extVar("USE_SEP")),
+    "with_crf": stringToBool(std.extVar("WITH_CRF")),
+    "intersentence_token":std.extVar("TOKEN"),
+    "model_type":std.extVar("MODEL_TYPE"),
     "bert_dropout": 0.1,
     "sci_sum": stringToBool(std.extVar("SCI_SUM")),
     "additional_feature_size": boolToInt(stringToBool(std.extVar("USE_ABSTRACT_SCORES"))),
@@ -68,15 +68,14 @@ local boolToInt(s) =
   "data_loader": {
         "batch_size": std.parseInt(std.extVar("BATCH_SIZE")),
         "shuffle": false,
-  }
+  },
   "trainer": {
     "num_epochs": std.parseInt(std.extVar("NUM_EPOCHS")),
     "grad_clipping": 1.0,
     "patience": 5,
-    "model_save_interval": 3600,
     "validation_metric": if stringToBool(std.extVar("SCI_SUM")) then "-loss" else '+acc',
     "cuda_device": std.parseInt(std.extVar("cuda_device")),
-    "gradient_accumulation_batch_size": 32,
+    "num_gradient_accumulation_steps": 32,
     "optimizer": {
       "type": "huggingface_adamw",
       "lr": std.parseJson(std.extVar("LR")),
@@ -85,7 +84,7 @@ local boolToInt(s) =
     "learning_rate_scheduler": {
       "type": "slanted_triangular",
       "num_epochs": std.parseInt(std.extVar("NUM_EPOCHS")),
-      "num_steps_per_epoch": std.parseInt(std.extVar("TRAINING_DATA_INSTANCES")) / 32,
+      "num_steps_per_epoch": std.parseInt(std.extVar("TRAINING_STEPS")),
       "cut_frac": 0.1,
     },
   }
