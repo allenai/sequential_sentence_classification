@@ -67,7 +67,7 @@ local boolToInt(s) =
   },
   "data_loader": {
         "batch_size": std.parseInt(std.extVar("BATCH_SIZE")),
-        "shuffle": false,
+        "shuffle": true,
   },
   "trainer": {
     "num_epochs": std.parseInt(std.extVar("NUM_EPOCHS")),
