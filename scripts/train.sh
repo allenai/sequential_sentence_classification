@@ -5,13 +5,13 @@ export PYTORCH_SEED=`expr $SEED / 10`
 export NUMPY_SEED=`expr $PYTORCH_SEED / 10`
 
 # path to bert type and path
-# export BERT_MODEL=allenai/scibert_scivocab_uncased
-# export TOKEN= [SEP]
-# export MODEL_TYPE=bert
+export BERT_MODEL=allenai/scibert_scivocab_uncased
+export TOKEN=[SEP]
+export MODEL_TYPE=bert
 
-export BERT_MODEL=roberta-base
-export TOKEN="</s>"
-export MODEL_TYPE=roberta
+# export BERT_MODEL=roberta-base
+# export TOKEN="</s>"
+# export MODEL_TYPE=roberta
 
 # path to dataset files
 export TRAIN_PATH=data/CSAbstruct/train.jsonl
@@ -24,11 +24,11 @@ export WITH_CRF=false  # CRF only works for the baseline
 
 # training params
 export cuda_device=0
-export BATCH_SIZE=1 # set one for roberta
-export LR=5e-5
+export BATCH_SIZE=4 # set one for roberta
+export LR=1e-5
 #export TRAINING_DATA_INSTANCES=1668
 export TRAINING_STEPS=52
-export NUM_EPOCHS=2
+export NUM_EPOCHS=20
 
 # limit number of sentneces per examples, and number of words per sentence. This is dataset dependant
 export MAX_SENT_PER_EXAMPLE=10
