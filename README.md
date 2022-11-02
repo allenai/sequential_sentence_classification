@@ -1,6 +1,8 @@
 # <p align=center>Sequential Sentence Classification</p>
 This repo has code and data for our paper ["Pretrained Language Models for Sequential Sentence Classification"](https://arxiv.org/pdf/1909.04054.pdf).
 
+
+
 ### How to run
 
 ```
@@ -12,7 +14,10 @@ Update the `scripts/train.sh` script with the appropriate hyperparameters and da
 
 ### CSAbstrcut dataset
 
-The train, dev, test splits of the dataset are in `data/CSAbstrcut`
+The train, dev, test splits of the dataset are in `data/CSAbstrcut`.
+
+CSAbstrcut is also available on the [Huggingface Hub](https://huggingface.co/datasets/allenai/csabstruct).
+
 ### Citing
 
 If you use the data or the model, please cite,
