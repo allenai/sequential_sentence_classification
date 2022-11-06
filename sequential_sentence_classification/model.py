@@ -1,6 +1,7 @@
 import logging
 from typing import Dict
 
+import numpy as np
 import torch
 from torch.nn import Linear
 from allennlp.data import Vocabulary
@@ -25,6 +26,8 @@ class SeqClassificationModel(Model):
                  self_attn: Seq2SeqEncoder = None,
                  bert_dropout: float = 0.1,
                  sci_sum: bool = False,
+                 intersentence_token: str = "[SEP]",
+                 model_type: str = "bert",
                  additional_feature_size: int = 0,
                  ) -> None:
         super(SeqClassificationModel, self).__init__(vocab)
@@ -36,7 +39,8 @@ class SeqClassificationModel(Model):
         self.sci_sum = sci_sum
         self.self_attn = self_attn
         self.additional_feature_size = additional_feature_size
-
+        self.token = intersentence_token
+        self.model_type = model_type
         self.dropout = torch.nn.Dropout(p=bert_dropout)
 
        # define loss
@@ -57,12 +61,12 @@ class SeqClassificationModel(Model):
                 label_name = self.vocab.get_token_from_index(namespace='labels', index=label_index)
                 self.label_f1_metrics[label_name] = F1Measure(label_index)
 
-        encoded_senetence_dim = text_field_embedder._token_embedders['bert'].output_dim
+        encoded_senetence_dim = text_field_embedder._token_embedders['bert'].get_output_dim()
 
         ff_in_dim = encoded_senetence_dim if self.use_sep else self_attn.get_output_dim()
         ff_in_dim += self.additional_feature_size
 
-        self.time_distributed_aggregate_feedforward = TimeDistributed(Linear(ff_in_dim, self.num_labels))
+        self.time_distributed_aggregate_feedforward = Linear(ff_in_dim, self.num_labels)
 
         if self.with_crf:
             self.crf = ConditionalRandomField(
@@ -82,19 +86,13 @@ class SeqClassificationModel(Model):
         ----------
         TODO: add description
 
-        Returns
-        -------
-        An output dictionary consisting of:
-        loss : torch.FloatTensor, optional
-            A scalar loss to be optimised.
         """
         # ===========================================================================================================
-        # Layer 1: For each sentence, participant pair: create a Glove embedding for each token
         # Input: sentences
         # Output: embedded_sentences
 
         # embedded_sentences: batch_size, num_sentences, sentence_length, embedding_size
-        embedded_sentences = self.text_field_embedder(sentences)
+        embedded_sentences = self.text_field_embedder(sentences, num_wrapping_dims= 1)
         mask = get_text_field_mask(sentences, num_wrapping_dims=1).float()
         batch_size, num_sentences, _, _ = embedded_sentences.size()
 
@@ -102,9 +100,18 @@ class SeqClassificationModel(Model):
             # The following code collects vectors of the SEP tokens from all the examples in the batch,
             # and arrange them in one list. It does the same for the labels and confidences.
             # TODO: replace 103 with '[SEP]'
-            sentences_mask = sentences['bert'] == 103  # mask for all the SEP tokens in the batch
+            index_sep = int(self.vocab.get_token_index(token=self.token, namespace = "tags"))
+            sentences_mask = sentences['bert']["token_ids"] == index_sep # mask for all the SEP tokens in the batch
             embedded_sentences = embedded_sentences[sentences_mask]  # given batch_size x num_sentences_per_example x sent_len x vector_len
                                                                         # returns num_sentences_per_batch x vector_len
+            ## roberta only WORKS ONLY IF BATCH SIZE == 1
+            if self.model_type == "roberta" :            
+                assert batch_size == 1, "set batch size to 1 for RoBERTa"                                               
+                indx = np.arange(embedded_sentences.shape[0])
+                device = "cuda" 
+                sel_idx = torch.from_numpy(indx[indx%2==0]).to(device)# select only scond intersentence marker
+                embedded_sentences = torch.index_select(embedded_sentences, 0, sel_idx)
+            
             assert embedded_sentences.dim() == 2
             num_sentences = embedded_sentences.shape[0]
             # for the rest of the code in this model to work, think of the data we have as one example
@@ -197,7 +204,10 @@ class SeqClassificationModel(Model):
             flattened_gold = labels.contiguous().view(-1)
 
             if not self.with_crf:
-                label_loss = self.loss(flattened_logits.squeeze(), flattened_gold)
+                if flattened_logits.shape[0] == 1:
+                    label_loss = self.loss(flattened_logits, flattened_gold)
+                else:
+                    label_loss = self.loss(flattened_logits.squeeze(), flattened_gold)
                 if confidences is not None:
                     label_loss = label_loss * confidences.type_as(label_loss).view(-1)
                 label_loss = label_loss.mean()
@@ -215,7 +225,10 @@ class SeqClassificationModel(Model):
 
             if not self.labels_are_scores:
                 evaluation_mask = (flattened_gold != -1)
-                self.label_accuracy(flattened_probs.float().contiguous(), flattened_gold.squeeze(-1), mask=evaluation_mask)
+                if flattened_probs.shape[0] == 1:
+                    self.label_accuracy(flattened_probs.float().contiguous(), flattened_gold, mask=evaluation_mask)
+                else:
+                    self.label_accuracy(flattened_probs.float().contiguous(), flattened_gold.squeeze(-1), mask=evaluation_mask)
 
                 # compute F1 per label
                 for label_index in range(self.num_labels):
@@ -238,8 +251,8 @@ class SeqClassificationModel(Model):
             average_F1 = 0.0
             for name, metric in self.label_f1_metrics.items():
                 metric_val = metric.get_metric(reset)
-                metric_dict[name + 'F'] = metric_val[2]
-                average_F1 += metric_val[2]
+                metric_dict[name + 'F'] = metric_val["f1"]
+                average_F1 += metric_val["f1"]
 
             average_F1 /= len(self.label_f1_metrics.items())
             metric_dict['avgF'] = average_F1
